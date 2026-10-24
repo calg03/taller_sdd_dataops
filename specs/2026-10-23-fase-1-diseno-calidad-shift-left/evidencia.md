@@ -33,6 +33,8 @@ Las casillas de aceptación permanecen pendientes hasta obtener la evidencia com
 2. Tres secrets configurados en GitHub y una identidad técnica con permisos de despliegue. En esta sesión no hay variables Databricks disponibles; nunca enviar sus valores al chat.
 3. Corrida del PR con ambos checks y revisión de reglas de `main`. La sesión local de `gh` está vencida; el conector GitHub sí tiene acceso al repositorio.
 
+La rama fue subida a `origin` con los commits `a40dbf0` y `a6db9e8`. Al intentar crear el PR en borrador, el conector devolvió **HTTP 403: Resource not accessible by integration**. No se creó el PR ni se ejecutaron sus checks; no se consideran creados los grupos remotos. La subida Git sí fue exitosa. Para continuar, habilitar creación de PR en la integración o abrir [la comparación de la rama](https://github.com/calg03/taller_sdd_dataops/compare/main...fase-1-diseno-calidad-shift-left?expand=1) y crear el PR en borrador. No hacer merge hasta obtener las verificaciones pendientes.
+
 ## Límites de la entrega
 
 Solo modelo, referencia y stages 1–2. No se cargan clientes ni métricas; no hay publicación semanal, alertas operativas ni limpieza automática de retención. Esos componentes siguen planificados en Fase 2. No se hace merge ni se presenta el despliegue remoto como aprobado.
