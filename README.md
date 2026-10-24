@@ -4,7 +4,7 @@
 
 La constitución y la spec de `specs/2026-10-23-fase-1-diseno-calidad-shift-left/` están aprobadas. En la rama `fase-1-diseno-calidad-shift-left` se implementaron la validación local y el despliegue del modelo. El flujo de clientes Bronze → Silver/rechazados → Gold y la programación semanal se implementarán en la Fase 2.
 
-**Pendiente para validar en Databricks:** completar los cuatro nombres reales de grupos en `config/project.json`, configurar los tres secrets y verificar permisos/conectividad. Los nombres están vacíos deliberadamente: el despliegue falla con `ACCESS_GROUPS_NOT_CONFIGURED` hasta completar la configuración. No se consideran verificados los accesos ni las tablas remotas por existir el código. Ver [evidencia de la Fase 1](specs/2026-10-23-fase-1-diseno-calidad-shift-left/evidencia.md).
+**Pendiente para validar en Databricks:** ejecutar con los tres secrets y verificar permisos/conectividad. Por autorización del usuario, el stage 2 crea los cuatro grupos de cuenta configurados si no existen, sin agregar miembros: `clientesconfiables_ingenieria`, `clientesconfiables_gobierno`, `clientesconfiables_marketing` y `clientesconfiables_bi`. La identidad técnica necesita permiso de administración para esta creación; si no lo tiene, falla con `GROUP_PROVISIONING_DENIED`. No se consideran creados/verificados los grupos, los accesos ni las tablas remotas por existir el código. Ver [evidencia de la Fase 1](specs/2026-10-23-fase-1-diseno-calidad-shift-left/evidencia.md).
 
 ### Ejecución local de Fase 1
 
@@ -39,6 +39,7 @@ python scripts/validate_model.py --pr-number 123
 | `src/clientes_confiables/customer_quality.py` | 1; reutilizable en futuro stage 4 | Reglas y selección de última versión compartidas, sin conexión a Databricks. |
 | `src/clientes_confiables/project_config.py` | 1 y 2 | Lee configuración no secreta y restringe catálogo, schema y sufijo de PR. |
 | `src/clientes_confiables/databricks_connection.py` | 2 | Conector oficial, secrets inyectados y timeout de socket de 60 segundos. |
+| `src/clientes_confiables/databricks_groups.py` | 2 | Crea y verifica grupos de cuenta con la API SCIM del workspace, reutilizando host/token de los secrets; no cambia miembros ni crea usuarios. |
 | `src/clientes_confiables/model_contract.py` | 2 | Contrato físico en `config/model.json`; verifica metadata y referencia única. |
 | `src/clientes_confiables/model_deployment.py` | 2 | Aplica DDL en orden, sin DROP/TRUNCATE ni carga de clientes. |
 | `src/clientes_confiables/model_permissions.py` | 2 | Aplica permisos por grupos; falla ante configuración ausente o acceso amplio conocido. |
@@ -62,7 +63,7 @@ Los SQL son plantillas invocadas por los scripts; no requieren ejecución manual
 
 `.github/workflows/fase-1.yml` ejecuta dos checks: **`calidad-shift-left` → `despliegue-modelo`**. El primer job no recibe secrets ni se conecta a Databricks. El segundo usa únicamente `DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH` y `DATABRICKS_TOKEN` y falla en contextos no confiables; no se usa `pull_request_target`. Hay timeout y concurrencia por PR.
 
-Configurar en `config/project.json` los nombres reales de cuatro grupos distintos (`engineering`, `governance`, `marketing`, `bi`). La identidad técnica debe poder usar el warehouse, crear schema/tablas/vistas y administrar sus permisos; los grupos deben existir. Los nombres de grupo son configuración, no secrets adicionales. Ingeniería/Gobierno acceden a tablas restringidas, Marketing solo a `customer_contacts`, BI solo a `contactability_current`. Verificar permisos heredados de catálogo/schema y probar con identidades reales antes de aceptar V19; los administradores pueden tener privilegios superiores por diseño.
+Los cuatro nombres de grupos distintos están en `config/project.json` (`engineering`, `governance`, `marketing`, `bi`). La identidad técnica debe poder crear grupos de cuenta a través de `/api/2.0/account/scim/v2/Groups`, usar el warehouse, crear schema/tablas/vistas y administrar sus permisos. Los nombres de grupo son configuración, no secrets adicionales. La creación es repetible y no agrega miembros; asignar personas y probar los accesos reales requiere conocer las identidades autorizadas. Ingeniería/Gobierno acceden a tablas restringidas, Marketing solo a `customer_contacts`, BI solo a `contactability_current`. Verificar permisos heredados de catálogo/schema antes de aceptar V19; los administradores pueden tener privilegios superiores por diseño.
 
 En PR se usa `workspace.demo.<objeto>__pr_<numero>` para tablas y vistas. Una segunda ejecución no duplica países; una incompatibilidad de contrato falla sin sustituir la tabla. El despliegue en `main` crea el modelo base, sin sufijo, después de validar origen. No hay clientes publicados todavía y las vistas permanecen vacías.
 
@@ -72,7 +73,7 @@ Tras el primer run, exigir ambos checks en las reglas de `main`, prohibir push d
 
 Retención acordada: seis meses para datos y trazabilidad. Los objetos de PR no deben conservarse más de ese plazo; registrar objetos y solicitar su limpieza al cerrar el PR, verificando el sufijo exacto antes de cualquier eliminación. La limpieza automática se implementará en Fase 2. No subir nuevas exportaciones personales al historial de Git; `customers.csv` es el ejemplo existente del taller y los fixtures nuevos son ficticios.
 
-Referencias de implementación: [conector SQL oficial](https://docs.databricks.com/aws/en/dev-tools/python-sql-connector) y [paquete del conector](https://pypi.org/project/databricks-sql-connector/). Las instrucciones generales del taller continúan a continuación; los acuerdos específicos vigentes son los de `constitucion/` y esta spec.
+Referencias de implementación: [conector SQL oficial](https://docs.databricks.com/aws/en/dev-tools/python-sql-connector), [paquete del conector](https://pypi.org/project/databricks-sql-connector/) y [gestión de grupos de cuenta vía API](https://docs.databricks.com/aws/en/admin/users-groups/manage-groups). Las instrucciones generales del taller continúan a continuación; los acuerdos específicos vigentes son los de `constitucion/` y esta spec.
 
 ---
 

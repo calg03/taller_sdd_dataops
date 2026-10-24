@@ -31,7 +31,7 @@ Cada grupo se implementará y revisará en este orden después de aprobar la spe
 3. Crear `sql/model/050_customer_contactability_gold.sql`, `060_pipeline_stage_runs.sql` y `070_published_snapshots.sql`: completar las siete tablas, sin insertar clientes ni métricas.
 4. Crear `sql/reference/seed_countries.sql`: carga idempotente de la referencia única versionada, sin duplicados ni cambios de fecha innecesarios.
 5. Crear `sql/model/080_consumer_views.sql`: vistas vigentes de Silver, contactos adultos contactables y Gold, vinculadas al puntero de publicación del entorno.
-6. Crear `sql/model/090_permissions.sql`: permisos por rol y nombres de grupos configurados. Comprobar existencia y permisos antes de aplicar; no dar acceso general como sustituto de una configuración faltante.
+6. Crear `sql/model/090_permissions.sql`: permisos por rol y nombres de grupos configurados. Crear `src/clientes_confiables/databricks_groups.py` para creación idempotente de grupos de cuenta, según ampliación autorizada por el usuario; verificar existencia sin agregar miembros. No dar acceso general como sustituto de una configuración faltante.
 
 ## 5. Implementar despliegue y comprobación del modelo
 

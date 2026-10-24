@@ -7,5 +7,10 @@
   "rejection_threshold_pct": 30,
   "adult_age": 18,
   "socket_timeout_seconds": 60,
-  "groups": {"engineering": "", "governance": "", "marketing": "", "bi": ""}
+  "groups": {
+    "engineering": "clientesconfiables_ingenieria",
+    "governance": "clientesconfiables_gobierno",
+    "marketing": "clientesconfiables_marketing",
+    "bi": "clientesconfiables_bi"
+  }
 }

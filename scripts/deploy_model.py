@@ -8,6 +8,7 @@ from pathlib import Path
 import _bootstrap  # noqa: F401
 from clientes_confiables.customer_quality import validate_source
 from clientes_confiables.databricks_connection import connect
+from clientes_confiables.databricks_groups import ensure_account_groups
 from clientes_confiables.model_deployment import deploy_model
 from clientes_confiables.model_permissions import configured_groups
 from clientes_confiables.project_config import ROOT, load_config, sql_context
@@ -32,6 +33,7 @@ def main():
         context = sql_context(args.pr_number)
         context["environment"] = f"pr_{args.pr_number}" if args.pr_number else "production"
         groups = configured_groups()
+        ensure_account_groups(groups)
         with connect() as connection, connection.cursor() as cursor:
             cursor.execute("SET TIME ZONE 'UTC'")
             audit_ready = False
@@ -57,6 +59,8 @@ def main():
         safe_codes = {"ACCESS_GROUPS_NOT_CONFIGURED", "ACCESS_GROUPS_MUST_DIFFER", "SHIFT_LEFT_REQUIRED",
                       "PR_ISOLATION_REQUIRED", "MISSING_DATABRICKS_SECRETS", "MODEL_CONTRACT_MISMATCH",
                       "BROAD_RAW_ACCESS_DETECTED", "INVALID_PR_NUMBER", "UNAPPROVED_NAMESPACE"}
+        safe_codes.update({"GROUP_PROVISIONING_DENIED", "GROUP_PROVISIONING_FAILED",
+                           "ACCOUNT_GROUP_NOT_VERIFIED", "AMBIGUOUS_ACCOUNT_GROUP"})
         code = str(error) if type(error) is ValueError and str(error) in safe_codes else "DEPLOYMENT_FAILED"
         output["error_code"] = code
     output["started_at"] = started.isoformat()
