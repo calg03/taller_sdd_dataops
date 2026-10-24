@@ -1,0 +1,11 @@
+customer_id,name,age,country,email
+TEST-1,,18,PE,fixture@example.test
+TEST-2,,18,PE,fixture@example.test
+TEST-3,,18,PE,fixture@example.test
+TEST-4,,18,PE,fixture@example.test
+TEST-5,Fixture,18,PE,fixture@example.test
+TEST-6,Fixture,18,PE,fixture@example.test
+TEST-7,Fixture,18,PE,fixture@example.test
+TEST-8,Fixture,18,PE,fixture@example.test
+TEST-9,Fixture,18,PE,fixture@example.test
+TEST-10,Fixture,18,PE,fixture@example.test

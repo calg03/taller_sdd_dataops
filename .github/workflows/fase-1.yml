@@ -1,0 +1,87 @@
+name: Fase 1 - Calidad y modelo
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fase-1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  calidad-shift-left:
+    name: calidad-shift-left
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pruebas locales sin secretos ni warehouse
+        run: python -m unittest discover -s tests -v
+      - name: Validar CSV del origen
+        run: python scripts/validate_source.py
+      - name: Conservar evidencia agregada
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: artifacts/quality.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  despliegue-modelo:
+    name: despliegue-modelo
+    needs: calidad-shift-left
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Requerir contexto confiable
+        env:
+          TRUSTED: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+        run: test "$TRUSTED" = "true"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: quality-report
+          path: artifacts
+      - name: Instalar conector SQL
+        run: python -m pip install -r requirements.txt
+      - name: Desplegar y verificar
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          if [ -n "$PR_NUMBER" ]; then
+            python scripts/deploy_model.py --pr-number "$PR_NUMBER"
+            python scripts/validate_model.py --pr-number "$PR_NUMBER"
+          else
+            test "$GITHUB_REF" = "refs/heads/main"
+            python scripts/deploy_model.py
+            python scripts/validate_model.py
+          fi
+      - name: Conservar evidencia de despliegue
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report
+          path: artifacts/deployment.json
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,3 @@
+customer_id,name,age,country,email
+TEST-1,Fixture,18,PE,fixture@example.test
+TEST-2,Fixture,18,PE,fixture@example.test
