@@ -22,6 +22,8 @@ Solo dos fases, en orden. Los plazos son relativos al inicio acordado del proyec
 
 **Aceptación:** Raúl valida la entrega técnica, Patricia las reglas de gobierno y Carmen la definición del KPI. El PR solo se integra con todos los checks de esta fase en verde. Esta fase crea el modelo; todavía no declara operativo el ciclo completo.
 
+Excepción de entorno autorizada: en Free Edition se acepta validar técnicamente el modelo con la identidad actual, sin SCIM ni accesos nuevos de Marketing/BI. V19 queda pendiente de un entorno compatible, documentado como limitación; no se presenta como aislamiento de roles probado ni habilita consumo compartido. Ambos checks técnicos siguen siendo obligatorios.
+
 ## Fase 2 · Pipeline de punta a punta
 
 **Objetivo:** automatizar desde la foto completa del CRM hasta las métricas publicadas, con cuarentena, trazabilidad y alertas.

@@ -11,7 +11,7 @@ from clientes_confiables.databricks_connection import connect
 from clientes_confiables.databricks_groups import ensure_account_groups
 from clientes_confiables.model_deployment import deploy_model
 from clientes_confiables.model_permissions import configured_groups
-from clientes_confiables.project_config import ROOT, load_config, sql_context
+from clientes_confiables.project_config import ROOT, deployment_mode, load_config, sql_context
 from clientes_confiables.stage_audit import record_stage
 
 
@@ -32,8 +32,11 @@ def main():
             raise ValueError("PR_ISOLATION_REQUIRED")
         context = sql_context(args.pr_number)
         context["environment"] = f"pr_{args.pr_number}" if args.pr_number else "production"
-        groups = configured_groups()
-        ensure_account_groups(groups)
+        mode = deployment_mode()
+        groups = {}
+        if mode == "managed":
+            groups = configured_groups()
+            ensure_account_groups(groups)
         with connect() as connection, connection.cursor() as cursor:
             cursor.execute("SET TIME ZONE 'UTC'")
             audit_ready = False
@@ -48,6 +51,9 @@ def main():
                 deploy_model(cursor, context, report["run_id"], groups, audit_start)
                 record_stage(cursor, context, report, "despliegue-modelo", "SUCCESS", started)
                 output = {"status": "SUCCESS", "stage": "despliegue-modelo", "run_id": report["run_id"]}
+                output["deployment_mode"] = mode
+                output["role_access_validation"] = "PENDING_FREE_EDITION" if mode == "free_edition" else "GRANTS_INSPECTED"
+                output["warnings"] = ["V19_PENDING_NO_CONSUMER_GRANTS"] if mode == "free_edition" else []
             except Exception:
                 if audit_ready:
                     try:
@@ -60,6 +66,7 @@ def main():
                       "PR_ISOLATION_REQUIRED", "MISSING_DATABRICKS_SECRETS", "MODEL_CONTRACT_MISMATCH",
                       "BROAD_RAW_ACCESS_DETECTED", "INVALID_PR_NUMBER", "UNAPPROVED_NAMESPACE"}
         safe_codes.update({"GROUP_PROVISIONING_DENIED", "GROUP_PROVISIONING_FAILED",
+                           "GROUP_AUTHENTICATION_FAILED", "INVALID_DEPLOYMENT_MODE",
                            "ACCOUNT_GROUP_NOT_VERIFIED", "AMBIGUOUS_ACCOUNT_GROUP"})
         code = str(error) if type(error) is ValueError and str(error) in safe_codes else "DEPLOYMENT_FAILED"
         output["error_code"] = code

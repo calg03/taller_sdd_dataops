@@ -1,7 +1,7 @@
 """Despliegue no destructivo del modelo y referencia, sin cargar clientes."""
 from .model_contract import assert_table, contracts, reference_rows, validate_model
 from .model_permissions import apply_permissions, validate_permissions
-from .project_config import ROOT, load_config
+from .project_config import ROOT, deployment_mode, load_config
 
 
 def execute_template(cursor, path, context):
@@ -26,6 +26,8 @@ def deploy_model(cursor, context, run_id, groups, on_audit_ready):
                               "region": row["region"], "version": load_config()["reference_version"],
                               "run_id": run_id})
     execute_template(cursor, folder / "080_consumer_views.sql", context)
-    apply_permissions(cursor, context, groups)
+    if deployment_mode() == "managed":
+        apply_permissions(cursor, context, groups)
     validate_model(cursor, context)
-    validate_permissions(cursor, context, groups)
+    if deployment_mode() == "managed":
+        validate_permissions(cursor, context, groups)

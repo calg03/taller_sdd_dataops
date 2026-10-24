@@ -2,6 +2,8 @@
 
 Estado: criterios pendientes de implementar y ejecutar. Ninguna casilla está cumplida por la sola redacción de esta spec.
 
+Excepción aprobada para `deployment_mode=free_edition`: V19 permanece pendiente y debe informarse como `V19_PENDING_NO_CONSUMER_GRANTS`, pero no bloquea los checks técnicos bajo esta autorización. No se ejecutan SCIM ni grants de consumidores; los accesos existentes no se consideran verificados y no se habilita consumo compartido. En `managed`, V19 mantiene su condición bloqueante original. La revisión y los checks de calidad/modelo siguen siendo obligatorios.
+
 Ejecutar contra el commit vigente de la rama `fase-1-diseno-calidad-shift-left`. En PR, reemplazar `<tabla>` por `workspace.demo.<tabla>__pr_<numero>`; nunca probar escrituras en tablas base. Guardar evidencia sin datos personales y con commit, ejecución y entorno.
 
 ## Stage 1 · Calidad shift-left

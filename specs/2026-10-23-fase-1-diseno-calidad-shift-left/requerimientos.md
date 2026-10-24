@@ -98,6 +98,8 @@ Bandera Silver: `is_adult = age >= 18`; `has_valid_email` sigue la regla de secc
 
 ## 7. Seguridad, costo y entrega
 
+**Adaptación aprobada tras el primer PR:** el usuario confirmó Databricks Free Edition y autorizó continuar con una sola identidad, sin SCIM ni concesiones a Marketing/BI, dejando V19 pendiente. `deployment_mode` debe ser explícitamente `free_edition` o `managed`; un valor desconocido falla. En `free_edition`, el stage 2 crea y valida las tablas/referencia/vistas y auditoría, pero no consulta/crea grupos ni ejecuta `090_permissions.sql`; emite `V19_PENDING_NO_CONSUMER_GRANTS`. No se afirma que los permisos existentes o heredados estén validados. En `managed` permanece el aprovisionamiento de grupos descrito antes. Esta excepción prevalece sobre el requisito previo de crear grupos para la ejecución de este taller; no autoriza compartir datos ni marcar V19 cumplido. No cambiar de modo automáticamente ante 401/403. [Limitaciones oficiales](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations).
+
 Usar solo `DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH` y `DATABRICKS_TOKEN` en GitHub Secrets. Stage 1 no recibe credenciales ni abre conexión. Stage 2 usa los secrets solo en PR confiables del repositorio; PR sin acceso autorizado a secrets falla/no queda elegible para merge, sin ejecutar código no confiable con credenciales.
 
 No incluir emails, nombres, identificadores ni filas originales en logs y artefactos de CI; emitir conteos por regla y referencias de posición. Las pruebas nuevas usan datos ficticios. No modificar el CSV del taller. Retención de datos acordada: seis meses; documentar la limpieza de objetos de PR para que no se conserven sin límite. Su automatización será de la Fase 2.

@@ -10,6 +10,13 @@ def load_config():
     return json.loads((ROOT / "config/project.json").read_text(encoding="utf-8"))
 
 
+def deployment_mode():
+    mode = load_config().get("deployment_mode")
+    if mode not in ("free_edition", "managed"):
+        raise ValueError("INVALID_DEPLOYMENT_MODE")
+    return mode
+
+
 def object_suffix(pr_number=None):
     if pr_number is None:
         return ""

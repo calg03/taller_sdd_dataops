@@ -29,7 +29,9 @@ def scim_request(method, query="", payload=None):
     except HTTPError as error:
         if error.code == 409:
             raise ValueError("GROUP_ALREADY_EXISTS") from None
-        if error.code in (401, 403):
+        if error.code == 401:
+            raise ValueError("GROUP_AUTHENTICATION_FAILED") from None
+        if error.code == 403:
             raise ValueError("GROUP_PROVISIONING_DENIED") from None
         raise ValueError("GROUP_PROVISIONING_FAILED") from None
     except (URLError, ValueError, OSError):

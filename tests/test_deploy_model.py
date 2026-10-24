@@ -10,6 +10,36 @@ from clientes_confiables.project_config import object_suffix, sql_context
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_free_edition_entrypoint_skips_scim(self):
+        import runpy
+        import sys
+        import tempfile
+        from pathlib import Path
+        from clientes_confiables.customer_quality import validate_source
+        from clientes_confiables.project_config import load_config
+
+        config = load_config()
+        report = validate_source(ROOT / config["source"], ROOT / config["reference"], config)
+        report.update(run_id="fixture-run", started_at="2026-10-23T12:00:00Z",
+                      finished_at="2026-10-23T12:01:00Z")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "quality.json"
+            path.write_text(json.dumps(report), encoding="utf-8")
+            with patch.object(sys, "path", [str(ROOT / "scripts")] + sys.path), \
+                 patch("clientes_confiables.databricks_groups.ensure_account_groups") as scim, \
+                 patch("clientes_confiables.databricks_connection.connect"), \
+                 patch("clientes_confiables.model_deployment.deploy_model"), \
+                 patch("clientes_confiables.stage_audit.record_stage"):
+                entry = runpy.run_path(str(ROOT / "scripts/deploy_model.py"))
+                entry["main"].__globals__["ROOT"] = Path(directory)
+                # Mantener rutas de entrada reales al aislar solo el reporte de salida.
+                entry["main"].__globals__["validate_source"] = lambda *args: report
+                with patch.object(sys, "argv", ["deploy_model.py", "--pr-number", "42", "--report", str(path)]):
+                    self.assertEqual(entry["main"](), 0)
+                scim.assert_not_called()
+                output = json.loads((Path(directory) / "artifacts/deployment.json").read_text(encoding="utf-8"))
+                self.assertEqual(output["role_access_validation"], "PENDING_FREE_EDITION")
+
     def test_only_numeric_pr_suffix(self):
         self.assertEqual(object_suffix(12), "__pr_12")
         for value in ("0", "-1", "1;DROP TABLE x", "1`", "001", ""):
@@ -79,6 +109,30 @@ class DeploymentTests(unittest.TestCase):
             for column, data_type, nullable in columns:
                 definition = f"{column} {data_type}" + ("" if nullable else " NOT NULL")
                 self.assertIn(definition, content)
+
+    def test_free_edition_never_applies_consumer_grants(self):
+        cursor = MagicMock()
+        context = dict(sql_context(42), environment="pr_42")
+        with patch("clientes_confiables.model_deployment.assert_table"), \
+             patch("clientes_confiables.model_deployment.validate_model"), \
+             patch("clientes_confiables.model_deployment.deployment_mode", return_value="free_edition"), \
+             patch("clientes_confiables.model_deployment.apply_permissions") as grant, \
+             patch("clientes_confiables.model_deployment.validate_permissions") as check:
+            deploy_model(cursor, context, "run", {}, MagicMock())
+        grant.assert_not_called()
+        check.assert_not_called()
+
+    def test_managed_mode_retains_permission_controls(self):
+        cursor = MagicMock()
+        context = dict(sql_context(42), environment="pr_42")
+        with patch("clientes_confiables.model_deployment.assert_table"), \
+             patch("clientes_confiables.model_deployment.validate_model"), \
+             patch("clientes_confiables.model_deployment.deployment_mode", return_value="managed"), \
+             patch("clientes_confiables.model_deployment.apply_permissions") as grant, \
+             patch("clientes_confiables.model_deployment.validate_permissions") as check:
+            deploy_model(cursor, context, "run", {}, MagicMock())
+        grant.assert_called_once()
+        check.assert_called_once()
 
 
 class AuditTests(unittest.TestCase):

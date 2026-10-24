@@ -2,6 +2,14 @@
 
 Fecha local: 2026-10-23, America/Lima. Rama: `fase-1-diseno-calidad-shift-left`.
 
+## Revisión del fallo del PR 1
+
+Run [40054331657](https://github.com/calg03/taller_sdd_dataops/actions/runs/40054331657): `calidad-shift-left` terminó SUCCESS y `despliegue-modelo` terminó FAILED con `GROUP_PROVISIONING_DENIED`, antes de desplegar tablas. El error original agrupaba 401/403, por lo que ese log no permite distinguir credencial inválida de permisos insuficientes.
+
+El responsable confirmó **Databricks Free Edition**, sin soporte de SCIM/API de cuenta, y autorizó adaptar el alcance: modo explícito `free_edition`, sin aprovisionar grupos ni conceder accesos de consumidores. V19 queda pendiente bajo excepción y no bloquea los checks técnicos. No se presenta como control de acceso por roles probado ni se habilita consumo compartido.
+
+Corrección: despliegue y validación omiten SCIM/grants únicamente en `free_edition`, mantienen esos pasos en `managed` y reportan `V19_PENDING_NO_CONSUMER_GRANTS`. Se separan además los errores HTTP 401 y 403. Las pruebas locales incluyen cobertura de ambos modos y de la ausencia de llamada SCIM en la entrada de despliegue. Las evidencias históricas siguientes describen el estado previo; la nueva ejecución de Actions debe confirmar el despliegue real.
+
 ## Comprobado localmente
 
 - Python 3.12.7: `python -m unittest discover -s tests -v`, **25 tests aprobados**. Incluyen reglas, estructura, bordes, selección de última versión, denominador, CLI sanitizado, despliegue y creación idempotente de grupos con conexiones simuladas.

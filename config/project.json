@@ -1,6 +1,7 @@
 {
   "catalog": "workspace",
   "schema": "demo",
+  "deployment_mode": "free_edition",
   "source": "data/source/customers.csv",
   "reference": "data/reference/countries.csv",
   "reference_version": "2026-10-23",

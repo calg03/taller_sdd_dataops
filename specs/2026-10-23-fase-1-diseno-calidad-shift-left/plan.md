@@ -4,6 +4,8 @@ Estado: aprobado; consultar `evidencia.md` para distinguir implementación local
 
 Cada grupo se implementará y revisará en este orden después de aprobar la spec. No se implementa en esta fase la ingesta ni la publicación de clientes.
 
+Adaptación de entorno autorizada tras el primer PR: ejecutar en `free_edition` sin SCIM ni grants de consumidores, con V19 pendiente. Las tareas de creación de grupos y permisos permanecen implementadas para `managed`; no se ejecutan en Free Edition. Ver excepción en requerimientos y validación.
+
 ## 1. Fijar contratos y configuración
 
 1. Crear `config/project.json`: catálogo `workspace`, schema `demo`, umbral 30, edad adulta 18, ubicación del origen y de la referencia. Sin secretos. El umbral se consume desde un solo lugar.

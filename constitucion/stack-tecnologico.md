@@ -101,6 +101,8 @@ Las tablas de trabajo se preparan sin sustituir la foto publicada. Ante fallo se
 
 ## Gobierno, acceso y entrega ejecutable
 
+**Excepción aprobada para el taller en Databricks Free Edition:** el responsable confirmó esta edición y autorizó desplegar con la identidad actual sin aprovisionamiento SCIM ni concesión de accesos a Marketing/BI. La configuración `deployment_mode = free_edition` omite expresamente esos pasos; no es un fallback automático ante una denegación. La matriz siguiente sigue siendo el objetivo de gobierno, pero su validación por roles (V19) queda pendiente y no bloquea los dos checks técnicos de esta fase bajo esta excepción. No habilitar consumo por terceros ni declarar cumplido el control de acceso por roles hasta disponer de un entorno compatible y probarlo. Los permisos existentes/heredados no se alteran ni se presumen verificados. En modo `managed` se mantienen la creación autorizada de grupos de cuenta y la inspección de permisos. Referencia: [limitaciones de Free Edition](https://docs.databricks.com/aws/en/getting-started/free-edition-limitations).
+
 | Rol | Acceso autorizado |
 | --- | --- |
 | Ingeniería y Gobierno | Bronze, Silver y rechazados con emails, bajo permisos restringidos; diagnóstico y corrección del origen. |

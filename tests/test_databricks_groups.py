@@ -2,10 +2,20 @@ import unittest
 from unittest.mock import patch
 
 from _support import ROOT
-from clientes_confiables.databricks_groups import ensure_account_groups
+from clientes_confiables.databricks_groups import ensure_account_groups, scim_request
 
 
 class AccountGroupTests(unittest.TestCase):
+    def test_authentication_and_permission_failures_are_distinct(self):
+        from urllib.error import HTTPError
+        for status, code in ((401, "GROUP_AUTHENTICATION_FAILED"), (403, "GROUP_PROVISIONING_DENIED")):
+            with self.subTest(status=status), \
+                 patch.dict("os.environ", {"DATABRICKS_HOST": "fixture.example.test", "DATABRICKS_TOKEN": "fixture-token"}), \
+                 patch("clientes_confiables.databricks_groups.build_opener") as opener:
+                opener.return_value.open.side_effect = HTTPError("https://fixture.example.test", status, "private response", {}, None)
+                with self.assertRaisesRegex(ValueError, code):
+                    scim_request("GET")
+
     def test_create_and_repeat_does_not_add_members(self):
         created = []
         calls = []
