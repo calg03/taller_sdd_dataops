@@ -1,5 +1,81 @@
 # Taller SDD para Datos: del prompt a la spec y de la spec al pipeline
 
+## Estado de ClientesConfiables · Fase 1
+
+La constitución y la spec de `specs/2026-10-23-fase-1-diseno-calidad-shift-left/` están aprobadas. En la rama `fase-1-diseno-calidad-shift-left` se implementaron la validación local y el despliegue del modelo. El flujo de clientes Bronze → Silver/rechazados → Gold y la programación semanal se implementarán en la Fase 2.
+
+**Pendiente para validar en Databricks:** completar los cuatro nombres reales de grupos en `config/project.json`, configurar los tres secrets y verificar permisos/conectividad. Los nombres están vacíos deliberadamente: el despliegue falla con `ACCESS_GROUPS_NOT_CONFIGURED` hasta completar la configuración. No se consideran verificados los accesos ni las tablas remotas por existir el código. Ver [evidencia de la Fase 1](specs/2026-10-23-fase-1-diseno-calidad-shift-left/evidencia.md).
+
+### Ejecución local de Fase 1
+
+Usar **Python 3.12**. Desde la raíz, sin credenciales y sin instalar el conector:
+
+```bash
+python -m unittest discover -s tests -v
+python scripts/validate_source.py
+```
+
+El CSV original no se modifica. Resultado esperado: 21 filas, 5 rechazos, **23,81%**, dentro del umbral aprobado de **30%**. Emails inválidos/vacíos producen advertencias, no rechazo obligatorio. Esta fase calcula resultados de evaluación en memoria, sin cargar clientes en Databricks. El KPI simulado de la muestra no demuestra el logro del KPI del CRM.
+
+Para desplegar después de configurar grupos y credenciales en el entorno autorizado:
+
+```bash
+python -m pip install -r requirements.txt
+python scripts/validate_source.py
+python scripts/deploy_model.py --pr-number 123
+python scripts/validate_model.py --pr-number 123
+```
+
+`123` es un ejemplo: reemplazar por el PR real. En GitHub Actions las credenciales se inyectan exclusivamente desde GitHub Secrets; no escribirlas en archivos, argumentos, README ni logs. La ejecución local del despliegue solo es apropiada con una inyección de secretos ya autorizada; el camino habitual es Actions. Los comandos sin `--pr-number` apuntan al modelo base y se reservan al despliegue desde `main` después del merge.
+
+### Scripts y stages
+
+| Script o módulo | Stage | Qué hace, entradas y salidas |
+| --- | --- | --- |
+| `scripts/validate_source.py` | 1 · calidad shift-left | Lee origen, referencia y configuración; valida estructura/tipos/reglas; escribe `artifacts/quality.json` agregado. `--source` permite probar otro CSV y `--report` otro destino. Exit 1 ante fallo estructural o más de 30% rechazado. |
+| `scripts/deploy_model.py` | 2 · despliegue | Revalida origen y reporte de stage 1, exige grupos configurados, crea/verifica el modelo, carga países, aplica permisos y valida. `--pr-number` aísla objetos. Escribe `artifacts/deployment.json`; falla ante secretos/grupos ausentes, incompatibilidad o error remoto. |
+| `scripts/validate_model.py` | 2 · comprobación | Solo lectura: comprueba columnas, tipos, nulabilidad, países, vistas y grants amplios conocidos. Mismo `--pr-number`. Exit 1 ante incumplimiento. No sustituye pruebas con identidades reales. |
+| `scripts/_bootstrap.py` | Soporte | Resuelve importaciones desde `src/`; no se ejecuta por separado. |
+| `src/clientes_confiables/customer_quality.py` | 1; reutilizable en futuro stage 4 | Reglas y selección de última versión compartidas, sin conexión a Databricks. |
+| `src/clientes_confiables/project_config.py` | 1 y 2 | Lee configuración no secreta y restringe catálogo, schema y sufijo de PR. |
+| `src/clientes_confiables/databricks_connection.py` | 2 | Conector oficial, secrets inyectados y timeout de socket de 60 segundos. |
+| `src/clientes_confiables/model_contract.py` | 2 | Contrato físico en `config/model.json`; verifica metadata y referencia única. |
+| `src/clientes_confiables/model_deployment.py` | 2 | Aplica DDL en orden, sin DROP/TRUNCATE ni carga de clientes. |
+| `src/clientes_confiables/model_permissions.py` | 2 | Aplica permisos por grupos; falla ante configuración ausente o acceso amplio conocido. |
+| `src/clientes_confiables/stage_audit.py` | Transversal en 1–2 | Consolida stage 1 en Databricks cuando existe conexión y registra intentos de stage 2. |
+| `sql/model/000_schema.sql` | 2 | Crea/verifica `workspace.demo`. |
+| `sql/model/010_customers_bronze.sql` | 2 | Crea tabla cruda sin poblarla. |
+| `sql/model/020_countries_reference.sql` | 2 | Crea tabla de países. |
+| `sql/model/030_customers_silver.sql` | 2 | Crea tabla limpia con banderas, sin poblarla. |
+| `sql/model/040_customers_rejected.sql` | 2 | Crea cuarentena con todos los motivos, sin poblarla. |
+| `sql/model/050_customer_contactability_gold.sql` | 2 | Crea métricas agregadas sin emails, sin poblarla. |
+| `sql/model/060_pipeline_stage_runs.sql` | 2 | Crea auditoría técnica por run/stage/intento. |
+| `sql/model/070_published_snapshots.sql` | 2 | Crea control de publicación, inicialmente vacío. |
+| `sql/model/080_consumer_views.sql` | 2 | Vistas vigentes y contactos adultos autorizados, vacías hasta publicar en Fase 2. |
+| `sql/model/090_permissions.sql` | 2 | Plantilla de permisos aplicada solo a grupos configurados. |
+| `sql/reference/seed_countries.sql` | 2 | MERGE parametrizado de los cinco países; conserva fecha y run si el contenido no cambia. |
+| `tests/test_*.py` | 1 · pruebas | Contratos, límites, privacidad, CLI, sufijos y despliegue simulado. No acredita ejecución remota. |
+
+Los SQL son plantillas invocadas por los scripts; no requieren ejecución manual. No incluyen secretos. Instalar `requirements-dev.txt` solo para revisiones adicionales del YAML; las pruebas locales de negocio usan la biblioteca estándar.
+
+### GitHub Actions, permisos y operación
+
+`.github/workflows/fase-1.yml` ejecuta dos checks: **`calidad-shift-left` → `despliegue-modelo`**. El primer job no recibe secrets ni se conecta a Databricks. El segundo usa únicamente `DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH` y `DATABRICKS_TOKEN` y falla en contextos no confiables; no se usa `pull_request_target`. Hay timeout y concurrencia por PR.
+
+Configurar en `config/project.json` los nombres reales de cuatro grupos distintos (`engineering`, `governance`, `marketing`, `bi`). La identidad técnica debe poder usar el warehouse, crear schema/tablas/vistas y administrar sus permisos; los grupos deben existir. Los nombres de grupo son configuración, no secrets adicionales. Ingeniería/Gobierno acceden a tablas restringidas, Marketing solo a `customer_contacts`, BI solo a `contactability_current`. Verificar permisos heredados de catálogo/schema y probar con identidades reales antes de aceptar V19; los administradores pueden tener privilegios superiores por diseño.
+
+En PR se usa `workspace.demo.<objeto>__pr_<numero>` para tablas y vistas. Una segunda ejecución no duplica países; una incompatibilidad de contrato falla sin sustituir la tabla. El despliegue en `main` crea el modelo base, sin sufijo, después de validar origen. No hay clientes publicados todavía y las vistas permanecen vacías.
+
+`pipeline_stage_runs__pr_<numero>` permite revisar stage, estado, conteos, ejecución y commit. Si falla antes de poder escribir auditoría, la evidencia queda en Actions; los reportes agregados se conservan como artifacts por siete días y localmente en `artifacts/` (ignorado por Git). Un fallo de monitoreo/persistencia nunca convierte el check en verde. Los errores remotos se sanitizan; revisar conexión, configuración y metadata en el entorno autorizado sin publicar filas originales.
+
+Tras el primer run, exigir ambos checks en las reglas de `main`, prohibir push directo y comprobar el bloqueo con un caso fallido. **No hacer merge con checks fallidos, omitidos ni con criterios remotos pendientes.** Los criterios y evidencias reales están en la spec.
+
+Retención acordada: seis meses para datos y trazabilidad. Los objetos de PR no deben conservarse más de ese plazo; registrar objetos y solicitar su limpieza al cerrar el PR, verificando el sufijo exacto antes de cualquier eliminación. La limpieza automática se implementará en Fase 2. No subir nuevas exportaciones personales al historial de Git; `customers.csv` es el ejemplo existente del taller y los fixtures nuevos son ficticios.
+
+Referencias de implementación: [conector SQL oficial](https://docs.databricks.com/aws/en/dev-tools/python-sql-connector) y [paquete del conector](https://pypi.org/project/databricks-sql-connector/). Las instrucciones generales del taller continúan a continuación; los acuerdos específicos vigentes son los de `constitucion/` y esta spec.
+
+---
+
 Taller práctico de **Spec-Driven Development (SDD)** aplicado a datos. En vez de pedirle a un asistente de IA "hazme un pipeline", primero escribimos **qué** queremos y **cómo sabremos que está listo**. Esa especificación (spec) es la que guía la construcción.
 
 Vamos a recorrer el **ciclo del dato** completo sobre un archivo de clientes (`customers.csv`):

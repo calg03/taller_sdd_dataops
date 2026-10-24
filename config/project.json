@@ -1,0 +1,11 @@
+{
+  "catalog": "workspace",
+  "schema": "demo",
+  "source": "data/source/customers.csv",
+  "reference": "data/reference/countries.csv",
+  "reference_version": "2026-10-23",
+  "rejection_threshold_pct": 30,
+  "adult_age": 18,
+  "socket_timeout_seconds": 60,
+  "groups": {"engineering": "", "governance": "", "marketing": "", "bi": ""}
+}
